@@ -4585,7 +4585,9 @@ void MenuFunctions::displayCurrentMenu(int start_index)
     uint8_t level = getBrightnessLevel();
 
     // LEDC write compatibility (2.x vs 3.x board package)
-    #if ESP_ARDUINO_VERSION_MAJOR >= 3
+    #if defined(MARAUDER_M5CORE2_AWS)
+      #define BL_PREVIEW(duty) axp192_obj.Core2ScreenBreath((uint8_t)(((uint16_t)(duty) * 100) / 255))
+    #elif ESP_ARDUINO_VERSION_MAJOR >= 3
       #define BL_PREVIEW(duty) ledcWrite(TFT_BL, (duty))
     #else
       #define BL_PREVIEW(duty) ledcWrite(0, (duty))

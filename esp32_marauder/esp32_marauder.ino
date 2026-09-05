@@ -133,7 +133,11 @@ uint32_t currentTime  = 0;
 // Helper macros for LEDC API compatibility (2.x vs 3.x board package)
 #ifdef HAS_SCREEN
   #ifndef HAS_MINI_SCREEN
-    #if ESP_ARDUINO_VERSION_MAJOR >= 3
+    #if defined(MARAUDER_M5CORE2_AWS)
+      // No backlight GPIO on the Core2: brightness is the AXP192 DC-DC3 rail
+      #define BL_SETUP()       do { } while (0)
+      #define BL_SET(duty)     axp192_obj.Core2ScreenBreath((uint8_t)(((uint16_t)(duty) * 100) / 255))
+    #elif ESP_ARDUINO_VERSION_MAJOR >= 3
       #define BL_SETUP()       ledcAttach(TFT_BL, BL_FREQ, BL_RESOLUTION)
       #define BL_SET(duty)     ledcWrite(TFT_BL, (duty))
     #else
@@ -251,6 +255,13 @@ void setup()
   while(!Serial)
     delay(10);
 
+  #ifdef MARAUDER_M5CORE2_AWS
+    // The panel, the digitiser and the SD slot are all powered by the AXP192,
+    // and the panel reset hangs off one of its GPIOs, so the PMU has to be up
+    // before anything else touches that hardware.
+    axp192_obj.Core2Begin();
+  #endif
+
   #ifdef HAS_C5_SD
     sharedSPI.begin(SD_SCK, SD_MISO, SD_MOSI);
     delay(100);
@@ -261,7 +272,7 @@ void setup()
     digitalWrite(POWER_HOLD_PIN, HIGH);
   #endif
   
-  #ifdef HAS_SCREEN
+  #if defined(HAS_SCREEN) && !defined(MARAUDER_M5CORE2_AWS)
     pinMode(TFT_BL, OUTPUT);
   #endif
   

@@ -3,9 +3,118 @@
 AXP192::AXP192() {
 }
 
+#if defined(MARAUDER_M5CORE2_AWS)
+
+// Brings up every rail the M5Core2 needs before the panel, the digitiser or
+// the SD card are touched, then pulses the shared LCD/touch reset line.
+void AXP192::Core2Begin(void) {
+    AXP192_I2C.begin(I2C_SDA, I2C_SCL);
+    AXP192_I2C.setClock(400000);
+
+    // Lift the VBUS current limit so the board can charge and run at once
+    Write1Byte(0x30, (Read8bit(0x30) & 0x04) | 0x02);
+
+    // GPIO1 (green status LED) and GPIO2 (speaker enable) as NMOS open drain
+    Write1Byte(0x92, Read8bit(0x92) & 0xF8);
+    Write1Byte(0x93, Read8bit(0x93) & 0xF8);
+
+    // Charge the RTC backup cell
+    Write1Byte(0x35, (Read8bit(0x35) & 0x1C) | 0xA2);
+
+    // DC-DC1 = 3.35V (ESP32 and the rest of the 3V3 rail)
+    Write1Byte(0x26, (Read8bit(0x26) & 0x80) | (uint8_t)((3350 - 700) / 25));
+
+    // DC-DC3 = 2.8V (LCD backlight, raised later by Core2ScreenBreath)
+    Write1Byte(0x27, (Read8bit(0x27) & 0x80) | (uint8_t)((2800 - 700) / 25));
+
+    // LDO2 = 3.3V (LCD logic and touch), LDO3 = 2.0V (vibration motor)
+    Write1Byte(0x28, (uint8_t)((((3300 - 1800) / 100) << 4) | ((2000 - 1800) / 100)));
+
+    // Enable EXTEN, LDO2, DC-DC3 and DC-DC1; leave LDO3 (motor) off
+    Write1Byte(0x12, (Read8bit(0x12) & 0xB0) | 0x47);
+
+    // GPIO0 as a 3.3V LDO, which is how the bus rail is powered
+    Write1Byte(0x91, 0xF0);
+    Write1Byte(0x90, 0x02);
+
+    // Charge to 4.2V at 100mA
+    Write1Byte(0x33, 0xC0);
+
+    // Enable every ADC channel so the battery readings are valid
+    Write1Byte(0x82, 0xFF);
+
+    // 128ms power on, 4s power off
+    Write1Byte(0x36, 0x4C);
+
+    // Temperature protection and battery detection
+    Write1Byte(0x39, 0xFC);
+    Write1Byte(0x32, 0x46);
+
+    // GPIO4 (LCD and touch reset) as NMOS open drain output
+    Write1Byte(0x95, (Read8bit(0x95) & 0x72) | 0x84);
+
+    Core2SetLed(false);
+
+    // Reset the panel and the digitiser together
+    Core2SetLcdReset(false);
+    delay(100);
+    Core2SetLcdReset(true);
+    delay(100);
+}
+
+// Backlight brightness as a percentage, driven by the DC-DC3 rail voltage.
+void AXP192::Core2ScreenBreath(uint8_t percent) {
+    if (percent == 0) {
+        Write1Byte(0x12, Read8bit(0x12) & ~0x02); // DC-DC3 off
+        return;
+    }
+
+    if (percent > 100) percent = 100;
+
+    uint16_t voltage = 2500 + (uint16_t)(((uint32_t)(3300 - 2500) * percent) / 100);
+    Write1Byte(0x27, (Read8bit(0x27) & 0x80) | (uint8_t)((voltage - 700) / 25));
+    Write1Byte(0x12, Read8bit(0x12) | 0x02); // DC-DC3 on
+}
+
+// GPIO4 drives the shared LCD/touch reset line, low being reset asserted.
+void AXP192::Core2SetLcdReset(bool state) {
+    uint8_t data = Read8bit(0x96);
+
+    if (state)
+        data |= 0x02;
+    else
+        data &= ~0x02;
+
+    Write1Byte(0x96, data);
+}
+
+// GPIO1 sinks the green status LED, so a low level lights it.
+void AXP192::Core2SetLed(bool state) {
+    uint8_t data = Read8bit(0x94);
+
+    if (state)
+        data &= ~0x02;
+    else
+        data |= 0x02;
+
+    Write1Byte(0x94, data);
+}
+
+// The AXP192 has no fuel gauge, so approximate from the pack voltage.
+int8_t AXP192::Core2BatteryPercent(void) {
+    int voltage_mv = (int)(GetBatVoltage() * 1000.0);
+
+    if (voltage_mv <= 3300) return 0;
+    if (voltage_mv >= 4150) return 100;
+
+    return (int8_t)(((voltage_mv - 3300) * 100) / 850);
+}
+
+#endif // MARAUDER_M5CORE2_AWS
+
 void AXP192::begin(void) {
-    Wire1.begin(21, 22);
-    Wire1.setClock(400000);
+    AXP192_I2C.begin(21, 22);
+    AXP192_I2C.setClock(400000);
 
     // Set LDO2 & LDO3(TFT_LED & TFT) 3.0V
     Write1Byte(0x28, 0xcc);
@@ -47,18 +156,18 @@ void AXP192::begin(void) {
 }
 
 void AXP192::Write1Byte(uint8_t Addr, uint8_t Data) {
-    Wire1.beginTransmission(0x34);
-    Wire1.write(Addr);
-    Wire1.write(Data);
-    Wire1.endTransmission();
+    AXP192_I2C.beginTransmission(0x34);
+    AXP192_I2C.write(Addr);
+    AXP192_I2C.write(Data);
+    AXP192_I2C.endTransmission();
 }
 
 uint8_t AXP192::Read8bit(uint8_t Addr) {
-    Wire1.beginTransmission(0x34);
-    Wire1.write(Addr);
-    Wire1.endTransmission();
-    Wire1.requestFrom(0x34, 1);
-    return Wire1.read();
+    AXP192_I2C.beginTransmission(0x34);
+    AXP192_I2C.write(Addr);
+    AXP192_I2C.endTransmission();
+    AXP192_I2C.requestFrom(0x34, 1);
+    return AXP192_I2C.read();
 }
 
 uint16_t AXP192::Read12Bit(uint8_t Addr) {
@@ -79,50 +188,50 @@ uint16_t AXP192::Read13Bit(uint8_t Addr) {
 
 uint16_t AXP192::Read16bit(uint8_t Addr) {
     uint16_t ReData = 0;
-    Wire1.beginTransmission(0x34);
-    Wire1.write(Addr);
-    Wire1.endTransmission();
-    Wire1.requestFrom(0x34, 2);
+    AXP192_I2C.beginTransmission(0x34);
+    AXP192_I2C.write(Addr);
+    AXP192_I2C.endTransmission();
+    AXP192_I2C.requestFrom(0x34, 2);
     for (int i = 0; i < 2; i++) {
         ReData <<= 8;
-        ReData |= Wire1.read();
+        ReData |= AXP192_I2C.read();
     }
     return ReData;
 }
 
 uint32_t AXP192::Read24bit(uint8_t Addr) {
     uint32_t ReData = 0;
-    Wire1.beginTransmission(0x34);
-    Wire1.write(Addr);
-    Wire1.endTransmission();
-    Wire1.requestFrom(0x34, 3);
+    AXP192_I2C.beginTransmission(0x34);
+    AXP192_I2C.write(Addr);
+    AXP192_I2C.endTransmission();
+    AXP192_I2C.requestFrom(0x34, 3);
     for (int i = 0; i < 3; i++) {
         ReData <<= 8;
-        ReData |= Wire1.read();
+        ReData |= AXP192_I2C.read();
     }
     return ReData;
 }
 
 uint32_t AXP192::Read32bit(uint8_t Addr) {
     uint32_t ReData = 0;
-    Wire1.beginTransmission(0x34);
-    Wire1.write(Addr);
-    Wire1.endTransmission();
-    Wire1.requestFrom(0x34, 4);
+    AXP192_I2C.beginTransmission(0x34);
+    AXP192_I2C.write(Addr);
+    AXP192_I2C.endTransmission();
+    AXP192_I2C.requestFrom(0x34, 4);
     for (int i = 0; i < 4; i++) {
         ReData <<= 8;
-        ReData |= Wire1.read();
+        ReData |= AXP192_I2C.read();
     }
     return ReData;
 }
 
 void AXP192::ReadBuff(uint8_t Addr, uint8_t Size, uint8_t *Buff) {
-    Wire1.beginTransmission(0x34);
-    Wire1.write(Addr);
-    Wire1.endTransmission();
-    Wire1.requestFrom(0x34, (int)Size);
+    AXP192_I2C.beginTransmission(0x34);
+    AXP192_I2C.write(Addr);
+    AXP192_I2C.endTransmission();
+    AXP192_I2C.requestFrom(0x34, (int)Size);
     for (int i = 0; i < Size; i++) {
-        *(Buff + i) = Wire1.read();
+        *(Buff + i) = AXP192_I2C.read();
     }
 }
 
@@ -291,11 +400,11 @@ void AXP192::SetSleep(void) {
 }
 
 uint8_t AXP192::GetWarningLeve(void) {
-    Wire1.beginTransmission(0x34);
-    Wire1.write(0x47);
-    Wire1.endTransmission();
-    Wire1.requestFrom(0x34, 1);
-    uint8_t buf = Wire1.read();
+    AXP192_I2C.beginTransmission(0x34);
+    AXP192_I2C.write(0x47);
+    AXP192_I2C.endTransmission();
+    AXP192_I2C.requestFrom(0x34, 1);
+    uint8_t buf = AXP192_I2C.read();
     return (buf & 0x01);
 }
 

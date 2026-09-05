@@ -6,6 +6,17 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#include "configs.h"
+
+// The M5Core2 keeps the PMU on the same I2C bus as the touch digitiser, the
+// IMU and the RTC, so it has to share the Wire instance those use. Every other
+// board that carries an AXP192 gives it a private bus on Wire1.
+#if defined(MARAUDER_M5CORE2_AWS)
+  #define AXP192_I2C Wire
+#else
+  #define AXP192_I2C Wire1
+#endif
+
 #define SLEEP_MSEC(us) (((uint64_t)us) * 1000L)
 #define SLEEP_SEC(us)  (((uint64_t)us) * 1000000L)
 #define SLEEP_MIN(us)  (((uint64_t)us) * 60L * 1000000L)
@@ -68,6 +79,17 @@ class AXP192 {
 
     // -- Power Off
     void PowerOff();
+
+#if defined(MARAUDER_M5CORE2_AWS)
+    // M5Core2 rail map: DC-DC1 = ESP32, DC-DC3 = LCD backlight,
+    // LDO2 = LCD logic + touch, LDO3 = vibration motor,
+    // GPIO4 = LCD/touch reset, GPIO1 = green status LED.
+    void Core2Begin(void);
+    void Core2ScreenBreath(uint8_t percent);
+    void Core2SetLcdReset(bool state);
+    void Core2SetLed(bool state);
+    int8_t Core2BatteryPercent(void);
+#endif
 
    public:
     void Write1Byte(uint8_t Addr, uint8_t Data);

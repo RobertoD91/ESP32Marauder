@@ -63,7 +63,14 @@ void BatteryInterface::RunSetup() {
         #endif
 
         #ifdef HAS_AXP192
+          #if defined(MARAUDER_M5CORE2_AWS)
+            // Already brought up before the display; re-running it is harmless
+            // and keeps the rails correct if setup order ever changes.
+            axp192_obj.Core2Begin();
+            this->i2c_supported = true;
+          #else
             axp192_obj.begin();
+          #endif
         #endif
 
 
@@ -138,6 +145,10 @@ int8_t BatteryInterface::getBatteryLevel() {
       if (this->has_axp2101) {
         return this->power.getBatteryPercent();
       }
+    #endif
+
+    #if defined(HAS_AXP192) && defined(MARAUDER_M5CORE2_AWS)
+      return axp192_obj.Core2BatteryPercent();
     #endif
 
   #endif // HAS_BATTERY

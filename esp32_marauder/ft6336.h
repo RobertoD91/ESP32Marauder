@@ -21,11 +21,16 @@ static bool _ft6336_read(uint8_t reg, uint8_t *buf, uint8_t len) {
 }
 
 static void ft6336_init() {
-    pinMode(CTP_RST, OUTPUT);
-    digitalWrite(CTP_RST, LOW);
-    delay(10);
-    digitalWrite(CTP_RST, HIGH);
-    delay(300);
+    // Some panels (M5Core2) tie the digitiser reset to a PMU GPIO instead of
+    // an ESP32 pin. There CTP_RST is negative and the reset already happened
+    // while the PMU was brought up.
+    #if CTP_RST >= 0
+      pinMode(CTP_RST, OUTPUT);
+      digitalWrite(CTP_RST, LOW);
+      delay(10);
+      digitalWrite(CTP_RST, HIGH);
+      delay(300);
+    #endif
     Wire.begin(CTP_SDA, CTP_SCL, 400000U);
 
     uint8_t chipId = 0;

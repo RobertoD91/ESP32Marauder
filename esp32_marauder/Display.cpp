@@ -43,7 +43,54 @@ int8_t Display::menuButton(uint16_t *x, uint16_t *y, bool pressed, bool check_ho
 uint8_t Display::updateTouch(uint16_t *x, uint16_t *y, uint16_t threshold) {
   #ifdef HAS_ILI9341
     if (!this->headless_mode) {
-      #ifdef HAS_CAP_TOUCH
+      #if defined(HAS_CAP_TOUCH) && defined(MARAUDER_M5CORE2_AWS)
+        // The Core2's FT6336U reports coordinates in the panel's native
+        // landscape frame: x runs 0..319 along the long axis, y runs 0..279,
+        // where rows 240..279 are the three capacitive buttons printed below
+        // the display. The UI drives the panel in portrait, so the reading has
+        // to be transposed into screen space.
+        {
+          uint16_t raw_x, raw_y;
+          if (!ft6336_read_raw(&raw_x, &raw_y)) return 0;
+
+          // Anything past the display area is a button-strip press, not a
+          // screen touch, and there is no UI mapped to those.
+          if (raw_x >= TFT_HEIGHT || raw_y >= TFT_WIDTH) return 0;
+
+          uint16_t screen_x, screen_y;
+
+          switch (this->tft.getRotation()) {
+            case 1: // Native landscape: the digitiser frame as it comes
+              screen_x = raw_x;
+              screen_y = raw_y;
+              break;
+            case 2: // Portrait 180
+              screen_x = (TFT_WIDTH - 1) - raw_y;
+              screen_y = raw_x;
+              break;
+            case 3: // Landscape 180
+              screen_x = (TFT_HEIGHT - 1) - raw_x;
+              screen_y = (TFT_WIDTH - 1) - raw_y;
+              break;
+            case 0: // Portrait, the orientation the menus are drawn in
+            default:
+              screen_x = raw_y;
+              screen_y = (TFT_HEIGHT - 1) - raw_x;
+              break;
+          }
+
+          // If touches come out rotated by 180 degrees on real hardware, the
+          // portrait mapping above is mirrored and this is the switch to flip.
+          #ifdef CORE2_TOUCH_ROTATE_180
+            screen_x = (TFT_WIDTH - 1) - screen_x;
+            screen_y = (TFT_HEIGHT - 1) - screen_y;
+          #endif
+
+          *x = screen_x;
+          *y = screen_y;
+          return 1;
+        }
+      #elif defined(HAS_CAP_TOUCH)
         // FT6336 capacitive touch: rotation-aware + edge exclusion
         {
           uint16_t raw_x, raw_y;

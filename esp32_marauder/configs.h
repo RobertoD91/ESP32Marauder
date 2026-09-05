@@ -11,6 +11,7 @@
   //// BOARD TARGETS
   //#define MARAUDER_M5STICKC
   //#define MARAUDER_M5STICKCP2
+  //#define MARAUDER_M5CORE2_AWS
   //#define MARAUDER_MINI
   //#define MARAUDER_V4
   //#define MARAUDER_V6
@@ -63,6 +64,8 @@
     #define HARDWARE_NAME "M5Stick-C Plus"
   #elif defined(MARAUDER_M5STICKCP2)
     #define HARDWARE_NAME "M5Stick-C Plus2"
+  #elif defined(MARAUDER_M5CORE2_AWS)
+    #define HARDWARE_NAME "M5Core2 for AWS"
   #elif defined(MARAUDER_CARDPUTER)
     #define HARDWARE_NAME "M5 Cardputer"
   #elif defined(MARAUDER_CARDPUTER_ADV)
@@ -145,6 +148,30 @@
     #define USE_SD
     #define HAS_TEMP_SENSOR
     #define HAS_GPS
+    #define HAS_DIRECT_UPLOAD
+  #endif
+
+  #ifdef MARAUDER_M5CORE2_AWS
+    // M5Core2 for AWS: ESP32-D0WDQ6-V3, 16MB flash, 8MB PSRAM, 320x240
+    // ILI9342C panel with an FT6336U capacitive digitiser, AXP192 PMU and a
+    // microSD slot sharing the panel's SPI bus.
+    #define HAS_TOUCH
+    #define HAS_CAP_TOUCH
+    #define HAS_BATTERY
+      #define HAS_AXP192
+    #define HAS_PWR_MGMT
+    #define HAS_BT
+    #define HAS_NEOPIXEL_LED
+    #define HAS_SCREEN
+    #define HAS_FULL_SCREEN
+    #define HAS_SD
+    #define USE_SD
+    #define HAS_C5_SD
+    #define HAS_GPS
+    #define HAS_PSRAM
+    #define HAS_TEMP_SENSOR
+    #define HAS_NIMBLE_2
+    #define HAS_IDF_3
     #define HAS_DIRECT_UPLOAD
   #endif
 
@@ -1369,6 +1396,72 @@
       #define KIT_LED_BUILTIN 13
     #endif 
 
+    #if defined(MARAUDER_M5CORE2_AWS)
+      #define CHAN_PER_PAGE 7
+
+      #define SCREEN_CHAR_WIDTH 40
+      #define HAS_ILI9341
+
+      #define BANNER_TEXT_SIZE 2
+
+      // The ILI9342C is a native 320x240 landscape controller. TFT_eSPI's
+      // M5STACK rotation table turns rotation 0 into a 240x320 portrait frame,
+      // which is the geometry the full-screen Marauder UI expects.
+      #ifndef TFT_WIDTH
+        #define TFT_WIDTH 240
+      #endif
+
+      #ifndef TFT_HEIGHT
+        #define TFT_HEIGHT 320
+      #endif
+
+      #define GRAPH_VERT_LIM TFT_HEIGHT/2 - 1
+
+      #define EXT_BUTTON_WIDTH 30
+
+      #define SCREEN_BUFFER
+
+      #define MAX_SCREEN_BUFFER 21
+
+      #define SCREEN_ORIENTATION 0
+
+      #define CHAR_WIDTH 12
+      #define SCREEN_WIDTH TFT_WIDTH
+      #define SCREEN_HEIGHT TFT_HEIGHT
+      #define HEIGHT_1 TFT_WIDTH
+      #define WIDTH_1 TFT_HEIGHT
+      #define STANDARD_FONT_CHAR_LIMIT (TFT_WIDTH/6) // number of characters on a single line with normal font
+      #define TEXT_HEIGHT 16 // Height of text to be printed and scrolled
+      #define BOT_FIXED_AREA 0 // Number of lines in bottom fixed area (lines counted from bottom of screen)
+      #define TOP_FIXED_AREA 48 // Number of lines in top fixed area (lines counted from top of screen)
+      #define YMAX 320 // Bottom of screen area
+      #define minimum(a,b)     (((a) < (b)) ? (a) : (b))
+      #define MENU_FONT &FreeMono9pt7b
+      #define BUTTON_SCREEN_LIMIT 12
+      #define BUTTON_ARRAY_LEN BUTTON_SCREEN_LIMIT
+      #define STATUS_BAR_WIDTH 16
+      #define LVGL_TICK_PERIOD 6
+
+      #define FRAME_X 100
+      #define FRAME_Y 64
+      #define FRAME_W 120
+      #define FRAME_H 50
+
+      // Red zone size
+      #define REDBUTTON_X FRAME_X
+      #define REDBUTTON_Y FRAME_Y
+      #define REDBUTTON_W (FRAME_W/2)
+      #define REDBUTTON_H FRAME_H
+
+      // Green zone size
+      #define GREENBUTTON_X (REDBUTTON_X + REDBUTTON_W)
+      #define GREENBUTTON_Y FRAME_Y
+      #define GREENBUTTON_W (FRAME_W/2)
+      #define GREENBUTTON_H FRAME_H
+
+      #define STATUSBAR_COLOR 0x4A49
+    #endif
+
     #if defined(MARAUDER_PANCAKE)
       #define CHAN_PER_PAGE 7
 
@@ -2238,6 +2331,24 @@
     //#define BUTTON_ARRAY_LEN 5
   #endif
 
+  #if defined(MARAUDER_M5CORE2_AWS)
+    #define BANNER_TIME 100
+
+    #define COMMAND_PREFIX "!"
+
+    // Keypad start position, key sizes and spacing
+    #define KEY_X 120 // Centre of key
+    #define KEY_Y 50
+    #define KEY_W 240 // Width and height
+    #define KEY_H 22
+    #define KEY_SPACING_X 0 // X and Y gap
+    #define KEY_SPACING_Y 1
+    #define KEY_TEXTSIZE 1   // Font size multiplier
+    #define ICON_W 22
+    #define ICON_H 22
+    #define BUTTON_PADDING 22
+  #endif
+
   #if defined(MARAUDER_PANCAKE)
     #define BANNER_TIME 100
     
@@ -2536,6 +2647,10 @@
       #define SD_CS -1
     #endif
 
+    #ifdef MARAUDER_M5CORE2_AWS
+      #define SD_CS 4
+    #endif
+
     #if defined(MARAUDER_CARDPUTER) || defined(MARAUDER_CARDPUTER_ADV)
       //#define SS      12
       #define SD_CS   12
@@ -2646,6 +2761,8 @@
   // These values are in bytes
   #ifdef MARAUDER_M5STICKC
     #define MEM_LOWER_LIM 10000
+  #elif defined(MARAUDER_M5CORE2_AWS)
+    #define MEM_LOWER_LIM 10000
   #elif defined(MARAUDER_CARDPUTER) || defined(MARAUDER_CARDPUTER_ADV)
     #define MEM_LOWER_LIM 10000
   #elif defined(MARAUDER_MINI)
@@ -2722,6 +2839,8 @@
       #define PIN 21
     #elif defined(MARAUDER_M5_NANO_C6)
       #define PIN 20
+    #elif defined(MARAUDER_M5CORE2_AWS)
+      #define PIN 25 // SK6812 LED bar, AWS variant only
     #else
       #define PIN 25
     #endif
@@ -2805,6 +2924,10 @@
       #define GPS_SERIAL_INDEX 1
       #define GPS_TX 33
       #define GPS_RX 32
+    #elif defined(MARAUDER_M5CORE2_AWS)
+      #define GPS_SERIAL_INDEX 1
+      #define GPS_TX 13 // Grove Port C RXD2 <- external GPS TX
+      #define GPS_RX 14 // Grove Port C TXD2 -> external GPS RX
     #elif defined(MARAUDER_CARDPUTER)
       #define GPS_SERIAL_INDEX 1
       #define GPS_TX 1
@@ -2847,7 +2970,18 @@
   //// BATTERY STUFF
   #ifdef HAS_BATTERY
 
-    #if defined(MARAUDER_M5STICKC) || defined(MARAUDER_M5STICKCP2) 
+    #if defined(MARAUDER_M5CORE2_AWS)
+      // Internal bus: AXP192 (0x34), FT6336U (0x38), MPU6886 (0x68),
+      // ATECC608 (0x35) and the BM8563 RTC all sit on SDA 21 / SCL 22.
+      #define I2C_SDA 21
+      #define I2C_SCL 22
+      // Cap touch shares that bus. Its reset line is driven by AXP192 GPIO4,
+      // not by an ESP32 pin, so there is no CTP_RST GPIO to toggle.
+      #define CTP_RST -1
+      #define CTP_SDA I2C_SDA
+      #define CTP_SCL I2C_SCL
+
+    #elif defined(MARAUDER_M5STICKC) || defined(MARAUDER_M5STICKCP2)
       #define I2C_SDA 33
       #define I2C_SCL 22
 
@@ -3058,6 +3192,12 @@
     #endif
 
     #ifdef MARAUDER_PANCAKE
+      #define SD_MISO TFT_MISO
+      #define SD_MOSI TFT_MOSI
+      #define SD_SCK  TFT_SCLK
+    #endif
+
+    #ifdef MARAUDER_M5CORE2_AWS
       #define SD_MISO TFT_MISO
       #define SD_MOSI TFT_MOSI
       #define SD_SCK  TFT_SCLK

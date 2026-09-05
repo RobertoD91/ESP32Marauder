@@ -103,6 +103,15 @@
       "esptoolChip": "esp32"
     },
     {
+      "id": "m5core2-aws",
+      "displayName": "M5Core2 for AWS",
+      "aliases": ["M5Stack Core2 for AWS", "Core2 for AWS IoT EduKit", "AWS EduKit"],
+      "buildFlag": "MARAUDER_M5CORE2_AWS",
+      "assetSuffix": "m5core2_aws",
+      "chipFamily": "ESP32",
+      "esptoolChip": "esp32"
+    },
+    {
       "id": "reverse-feather",
       "displayName": "ESP32-S2 Reverse Feather",
       "aliases": ["Rev Feather"],
