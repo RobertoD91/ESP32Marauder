@@ -59,14 +59,19 @@ uint8_t Display::updateTouch(uint16_t *x, uint16_t *y, uint16_t threshold) {
 
           uint16_t screen_x, screen_y;
 
+          // TFT_eSPI's M5STACK rotation table drives the panel through MADCTL:
+          // rotation 1 leaves the frame native, so the digitiser reading is the
+          // screen coordinate as it comes. Rotation 0 adds MV (transpose) and MY
+          // (flip of the axis that then feeds screen x). Rotations 2 and 3 are
+          // the 180 degree counterparts. Verified against hardware in portrait.
           switch (this->tft.getRotation()) {
-            case 1: // Native landscape: the digitiser frame as it comes
+            case 1: // Native landscape
               screen_x = raw_x;
               screen_y = raw_y;
               break;
             case 2: // Portrait 180
-              screen_x = (TFT_WIDTH - 1) - raw_y;
-              screen_y = raw_x;
+              screen_x = raw_y;
+              screen_y = (TFT_HEIGHT - 1) - raw_x;
               break;
             case 3: // Landscape 180
               screen_x = (TFT_HEIGHT - 1) - raw_x;
@@ -74,17 +79,10 @@ uint8_t Display::updateTouch(uint16_t *x, uint16_t *y, uint16_t threshold) {
               break;
             case 0: // Portrait, the orientation the menus are drawn in
             default:
-              screen_x = raw_y;
-              screen_y = (TFT_HEIGHT - 1) - raw_x;
+              screen_x = (TFT_WIDTH - 1) - raw_y;
+              screen_y = raw_x;
               break;
           }
-
-          // If touches come out rotated by 180 degrees on real hardware, the
-          // portrait mapping above is mirrored and this is the switch to flip.
-          #ifdef CORE2_TOUCH_ROTATE_180
-            screen_x = (TFT_WIDTH - 1) - screen_x;
-            screen_y = (TFT_HEIGHT - 1) - screen_y;
-          #endif
 
           *x = screen_x;
           *y = screen_y;
