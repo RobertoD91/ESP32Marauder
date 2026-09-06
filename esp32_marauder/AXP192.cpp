@@ -8,6 +8,10 @@ AXP192::AXP192() {
 // Brings up every rail the M5Core2 needs before the panel, the digitiser or
 // the SD card are touched, then pulses the shared LCD/touch reset line.
 void AXP192::Core2Begin(void) {
+    // Running this twice would re-assert the panel reset below and leave the
+    // display asleep for the rest of the session.
+    if (this->core2_ready) return;
+
     AXP192_I2C.begin(I2C_SDA, I2C_SCL);
     AXP192_I2C.setClock(400000);
 
@@ -60,6 +64,8 @@ void AXP192::Core2Begin(void) {
     delay(100);
     Core2SetLcdReset(true);
     delay(100);
+
+    this->core2_ready = true;
 }
 
 // Backlight brightness as a percentage, driven by the DC-DC3 rail voltage.

@@ -64,8 +64,10 @@ void BatteryInterface::RunSetup() {
 
         #ifdef HAS_AXP192
           #if defined(MARAUDER_M5CORE2_AWS)
-            // Already brought up before the display; re-running it is harmless
-            // and keeps the rails correct if setup order ever changes.
+            // The PMU is brought up at the top of setup(), before the display,
+            // because it drives the panel rails and the panel reset line. This
+            // call is the safety net for a different setup order and no-ops
+            // once the bring-up has run.
             axp192_obj.Core2Begin();
             this->i2c_supported = true;
           #else

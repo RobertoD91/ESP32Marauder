@@ -84,6 +84,11 @@ class AXP192 {
     // M5Core2 rail map: DC-DC1 = ESP32, DC-DC3 = LCD backlight,
     // LDO2 = LCD logic + touch, LDO3 = vibration motor,
     // GPIO4 = LCD/touch reset, GPIO1 = green status LED.
+    //
+    // Core2Begin pulses the panel and digitiser reset, so it must run once,
+    // before the display is initialised. A later call would leave the panel
+    // asleep with the backlight still on; core2_ready makes that a no-op.
+    bool core2_ready = false;
     void Core2Begin(void);
     void Core2ScreenBreath(uint8_t percent);
     void Core2SetLcdReset(bool state);
