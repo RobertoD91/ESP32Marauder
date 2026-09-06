@@ -26,6 +26,11 @@
 #define TFT_WIDTH  240
 #define TFT_HEIGHT 320
 
+// The ILI9342C ships inverted with respect to the ILI9341 init sequence, so
+// without this the whole UI renders as its own colour complement: white
+// background, orange menu entries turning blue, red turning cyan.
+#define TFT_INVERSION_ON
+
 // ##################################################################################
 //
 // Section 2. Define the pins that are used to interface with the display here
