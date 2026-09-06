@@ -53,9 +53,26 @@ uint8_t Display::updateTouch(uint16_t *x, uint16_t *y, uint16_t threshold) {
           uint16_t raw_x, raw_y;
           if (!ft6336_read_raw(&raw_x, &raw_y)) return 0;
 
-          // Anything past the display area is a button-strip press, not a
-          // screen touch, and there is no UI mapped to those.
-          if (raw_x >= TFT_HEIGHT || raw_y >= TFT_WIDTH) return 0;
+          if (raw_x >= TFT_HEIGHT) return 0;
+
+          // The digitiser is taller than the panel: rows 240..279 are the three
+          // capacitive buttons printed below the display, split into thirds
+          // along the long axis. In portrait that axis is the screen's vertical
+          // one, so each button already sits alongside the menu band it should
+          // drive. Report a press at the centre of that band and the rest of
+          // the UI treats it like any other touch, hold gestures included.
+          if (raw_y >= TFT_WIDTH) {
+            if (raw_y >= 280) return 0;               // outside the digitiser
+            if (this->tft.getRotation() != 0) return 0; // menus are portrait only
+
+            const uint16_t band = TFT_HEIGHT / 3;
+            uint16_t zone = raw_x / band;
+            if (zone > 2) zone = 2;
+
+            *x = TFT_WIDTH / 2;
+            *y = zone * band + (band / 2);
+            return 1;
+          }
 
           uint16_t screen_x, screen_y;
 
